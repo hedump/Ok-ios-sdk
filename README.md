@@ -1,49 +1,35 @@
-Join our chat on the app: Telegram Messenger, https://telegram.me/joinchat/An0xvgHDHvWlSWNQWuzOkQ 
-
-###OK IOS SDK 2.0.14
-
-[![Join the chat at https://gitter.im/apiok/ok-ios-sdk](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/apiok/ok-ios-sdk?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
-If you are looking for the old version, please checkout tag 1.0
-####How to use
-First you should select External and IOS platforms and enable Client OAuth authorization using ok.ru app edit form. 
-Also your should send request for LONG_ACCESS_TOKEN to [api-support](mailto:api-support@ok.ru) or you can simple not request for LONG_ACCESS_TOKEN permission during OAuth authorization.
-
-Add *ok{appId}* schema to your app Info.plist file. For example *ok12345* if your app has appId *12345*.
-Don't forget add ok{appId}://authorize to allowed redirect urls for your application in ok.ru app profile. Also you should add next block to your Info.plist file.
-```xml
- <key>NSAppTransportSecurity</key>
-    <dict>
-        <key>NSAllowsArbitraryLoads</key>
-        <true/>
-    </dict>
+# Ok-ios-sdk (Swift Package Manager)
+## tl;dr
+Я сделал форк официальный либы для подключения ее с помощью SPM. Для описания работы SDK идите в официальную [репу](https://github.com/odnoklassniki/ok-ios-sdk).
+Do you speak english m#$@%!!r: this is fork of ok-ios-sdk without unnecessary files working on Swift Package manager.
+## Installation
+### As part of project
+Select Xcode menu `File > Swift Packages > Add Package Dependency` and paste repository URL.
 ```
-
-Add OKSDK.h and OKSDK.m to your project. For example you can use git submodule.
-
-Init your sdk in AppDelegate didFinishLaunchingWithOptions
-```objective-c
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    OKSDKInitSettings *settings = [OKSDKInitSettings new];
-    settings.appKey = @"ABCDEFGABCDEGF";
-    settings.appId = @"12345";
-    settings.controllerHandler = ^{
-        return self.window.rootViewController;
-    };
-    [OKSDK initWithSettings: settings];
-    return YES;
-}
+https://github.com/hedump/Ok-ios-sdk
 ```
-
-Add openUrl to AppDelegate openURL
-```objective-c
--(BOOL)application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(NSString *)sourceApplication annotation:(id)annotation {
-    [OKSDK openUrl:url];
-    return YES;
-}
+### Package inside another one
+Add package in `dependencies` of your Package.swift
+```swift
+let package = Package(
+    ...,
+    dependencies: [
+        .package(url: "https://github.com/hedump/Ok-ios-sdk", .exact("2.1.0"))
+        ...
+    ],
+    targets: [
+        .target(
+            name: "MyPackage",
+            dependencies: [
+                "Щk-ios-sdk",
+                ...
+            ]
+        ),
+        ...
+    ]
+)
 ```
-
-To understand how to interact with OKSDK please look at examples  [repository](https://github.com/apiok/ok-ios-sdk-examples)
-
-
-
+#### My manifest
+I'm not gonna change or delete anything in this fork. Use it as it is.
+## License
+sdk maybe on original fork there is one
