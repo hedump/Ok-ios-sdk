@@ -1,3 +1,12 @@
+#import <Foundation/Foundation.h>
+#import <CommonCrypto/CommonDigest.h>
+#import <UIKit/UIKit.h>
+#import <AdSupport/ASIdentifierManager.h>
+#import "OKSDK.h"
+#ifdef __IPHONE_9_0
+#import <SafariServices/SafariServices.h>
+#endif
+
 typedef void (^OKResultBlock)(id data);
 typedef void (^OKErrorBlock)(NSError *error);
 #define OKColor [UIColor colorWithRed:0xED/255.f green:0x81/255.f blue:0x2B/255.f alpha:1.f]

@@ -10,6 +10,15 @@
 #endif
 #endif
 
+#import <Foundation/Foundation.h>
+#import <CommonCrypto/CommonDigest.h>
+#import <UIKit/UIKit.h>
+#import <AdSupport/ASIdentifierManager.h>
+#import "OKSDK.h"
+#ifdef __IPHONE_9_0
+#import <SafariServices/SafariServices.h>
+#endif
+
 #import "OKSDK.h"
 
 FOUNDATION_EXPORT double ok_ios_sdkVersionNumber;
