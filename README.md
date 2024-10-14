@@ -21,7 +21,7 @@ let package = Package(
         .target(
             name: "MyPackage",
             dependencies: [
-                "Щk-ios-sdk",
+                "Ok-ios-sdk",
                 ...
             ]
         ),

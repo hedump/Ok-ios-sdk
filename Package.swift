@@ -17,7 +17,7 @@ let package = Package(
         .target(
             name: "Ok-ios-sdk",
             path: "Sources/Ok-ios-sdk",
-            publicHeadersPath: "include"
+            publicHeadersPath: "."
         )
     ]
 )
