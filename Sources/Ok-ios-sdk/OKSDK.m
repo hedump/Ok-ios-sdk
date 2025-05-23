@@ -5,6 +5,7 @@
 #import "OKSDK.h"
 #ifdef __IPHONE_9_0
 #import <SafariServices/SafariServices.h>
+#import <WebKit/WebKit.h>
 #endif
 
 #define kIOS9x ([[[UIDevice currentDevice] systemVersion] floatValue] >= 9.0f)  // TODO: заменить после перехода на SDK9
@@ -246,31 +247,6 @@ typedef void (^OKErrorBlock)(NSError *error);
     return self;
 }
 
-- (void)openInSafari:(NSURL *)url success:(OKResultBlock)successBlock error:(OKErrorBlock)errorBlock {
-    @synchronized(self) {
-        if( [[self.safariVC view] superview] ) {
-            return errorBlock([OKConnection sdkError:OKSDKErrorCodeUserConfirmationDialogAlreadyInProgress format:@"user confirmation dialog is already in progress"]);
-        }
-        dispatch_async(dispatch_get_main_queue(), ^{
-            UIViewController *hostController = self.settings.controllerHandler();
-            UIViewController  *vc;
-#ifdef __IPHONE_9_0
-            if (kIOS9x) {
-                vc = [[OKSFSafariViewController alloc] initWithErrorBlock:errorBlock url:url];
-                [hostController presentViewController:vc animated:true completion:nil];
-                self.safariVC = vc;
-            } else {
-               [[UIApplication sharedApplication] openURL: url];
-            }
-#else
-            [[UIApplication sharedApplication] openURL: url];
-#endif
-
-        });
-    }
-}
-
-
 - (BOOL)openUrl:(NSURL *)url {
     dispatch_async(dispatch_get_main_queue(), ^{
         [self.safariVC dismissViewControllerAnimated:YES completion:nil];
@@ -289,35 +265,6 @@ typedef void (^OKErrorBlock)(NSError *error);
         return YES;
     }
     return NO;
-}
-
-- (void)authorizeWithPermissions:(NSArray *)permissions success:(OKResultBlock)successBlock error:(OKErrorBlock)errorBlock {
-    if (self.accessToken && self.accessTokenSecretKey) {
-        return successBlock(@[self.accessToken, self.accessTokenSecretKey]);
-    }
-
-    UIApplication *app = [UIApplication sharedApplication];
-    if (![NSBundle ok_hasRegisteredURLScheme:self.oauthRedirectScheme]) {
-        return errorBlock([OKConnection sdkError:OKSDKErrorCodeNoSchemaRegistered format:@"%@ schema should be registered for current app", self.oauthRedirectUri]);
-    }
-    NSString *queryString = [@{@"response_type":@"token",@"client_id":self.settings.appId,@"redirect_uri":[self.oauthRedirectUri ok_encode],@"layout":@"a",@"scope":[[permissions componentsJoinedByString:@";"] ok_encode]} ok_queryString];
-    NSURL *appUrl = [NSURL URLWithString: [NSString stringWithFormat:@"%@?%@",OK_OAUTH_APP_URL,queryString]];
-    __weak typeof(self) wSelf = self;
-    self.completitionHandlers[self.oauthRedirectUri] = ^(NSDictionary *data, NSError *error) {
-        if(error) {
-            errorBlock(error);
-        } else {
-            [wSelf saveTokens:data];
-            if(wSelf.accessToken || wSelf.accessTokenSecretKey) {
-                successBlock(@[wSelf.accessToken, wSelf.accessTokenSecretKey]);
-            } else {
-                errorBlock(error);
-            }
-        }
-    };
-    if (![app openURL: appUrl]) {
-        [self openInWebView:url success:successBlock error:errorBlock];
-    }
 }
 
 - (void)saveTokens:(NSDictionary *)data {
