@@ -1,4 +1,4 @@
-// OKWebAuthController.h/.m встроено прямо в OKSDK.m
+// OKSDK.m с поддержкой WKWebView и исправлением ошибки дублирующегося интерфейса
 
 #import <Foundation/Foundation.h>
 #import <CommonCrypto/CommonDigest.h>
@@ -21,15 +21,8 @@ NSString *const OK_API_ERROR_CODE_DOMAIN = @"ru.ok.api";
 NSString *const OK_SDK_ERROR_CODE_DOMAIN = @"ru.ok.sdk";
 
 typedef void (^OKCompletitionHander)(id data, NSError *error);
-
 typedef void (^OKResultBlock)(id data);
 typedef void (^OKErrorBlock)(NSError *error);
-
-@interface OKSDKInitSettings : NSObject
-@property (nonatomic, strong) NSString *appId;
-@property (nonatomic, strong) NSString *appKey;
-@property (nonatomic, strong) UIViewController* (^controllerHandler)(void);
-@end
 
 @implementation OKSDKInitSettings
 @end
