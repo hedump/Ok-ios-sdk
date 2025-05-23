@@ -216,8 +216,6 @@ typedef void (^OKErrorBlock)(NSError *error);
 @property(nonatomic,strong) NSString *sdkToken;
 @property(nonatomic,strong) NSMutableDictionary *completitionHandlers;
 
-- (void)invokeMethod:(NSString *)method arguments:(NSDictionary *)arguments session:(BOOL)session signed:(BOOL)signed success:(OKResultBlock)successBlock error:(OKErrorBlock)errorBlock;
-
 @end
 
 @implementation OKConnection
@@ -271,6 +269,47 @@ typedef void (^OKErrorBlock)(NSError *error);
     [userDefaults setObject:(self.accessToken = data[@"access_token"]) forKey:OK_USER_DEFS_ACCESS_TOKEN];
     [userDefaults setObject:(self.accessTokenSecretKey = data[@"session_secret_key"]) forKey:OK_USER_DEFS_SECRET_KEY];
     [userDefaults synchronize];
+}
+
+- (void)invokeMethod:(NSString *)method arguments:(NSDictionary *)methodParams session:(bool)sessionMethod signed:(bool)signedMethod success:(OKResultBlock)successBlock error:(OKErrorBlock)errorBlock {
+    if((!self.accessToken && sessionMethod) || (!self.accessTokenSecretKey && signedMethod)) {
+        return errorBlock([OKConnection sdkError:OKSDKErrorCodeNotAuthorized format:@"No access_token defined you should invoke authorizeWithPermissions first"]);
+    }
+    NSMutableDictionary *arguments = [[NSMutableDictionary alloc] initWithDictionary:methodParams];
+    [arguments setValuesForKeysWithDictionary:@{@"application_key":self.settings.appKey, @"method":method, @"format":@"json", @"platform":@"IOS"}];
+    NSString* queryString = signedMethod?[arguments ok_queryStringWithSignature:self.accessTokenSecretKey sigName:@"sig"]:[arguments ok_queryString];
+    NSString* url = sessionMethod?[NSString stringWithFormat:@"%@%@access_token=%@",OK_API_URL,queryString,self.accessToken]:[NSString stringWithFormat:@"%@%@",OK_API_URL,queryString];
+    NSMutableURLRequest *request = [NSMutableURLRequest
+                                    requestWithURL:[NSURL URLWithString:url] cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:OK_REQUEST_TIMEOUT];
+    [request setValue:[NSString stringWithFormat:@"OK-IOS-SDK  %@",OK_SDK_VERSION] forHTTPHeaderField:@"User-Agent"];
+    [NSURLConnection sendAsynchronousRequest:request queue:self.queue completionHandler:^(NSURLResponse *response, NSData *data, NSError *error) {
+        if (error) {
+            return errorBlock(error);
+        }
+        NSError *jsonParsingError = nil;
+        id result = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingAllowFragments error:&jsonParsingError];
+        if(jsonParsingError) {
+            return errorBlock(error);
+        }
+        if ([result isKindOfClass:[NSDictionary class]]) {
+            if (result[@"error_code"]) {
+                return errorBlock([(NSDictionary *)result ok_error]);
+            }
+            return successBlock(result);
+        }
+        if([result isKindOfClass:[NSArray class]]) {
+            return successBlock(result);
+        }
+        if([result isKindOfClass:[NSNumber class]]) {
+            return successBlock(result);
+        }
+        if([result isKindOfClass:[NSString class]]) {
+            return successBlock(result);
+        }
+        return errorBlock([OKConnection sdkError:OKSDKErrorCodeBadApiReponse format:@"unknown api response: %@",[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]]);
+
+    }];
+
 }
 
 - (void)authorizeWithPermissions:(NSArray *)permissions success:(OKResultBlock)successBlock error:(OKErrorBlock)errorBlock {
