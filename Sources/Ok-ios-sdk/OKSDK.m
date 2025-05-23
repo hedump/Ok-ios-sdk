@@ -209,15 +209,14 @@ typedef void (^OKErrorBlock)(NSError *error);
 @property(nonatomic,strong) OKSDKInitSettings *settings;
 @property(nonatomic,copy) NSString *oauthRedirectScheme;
 @property(nonatomic,copy) NSString *oauthRedirectUri;
-
 @property(nonatomic,strong) NSOperationQueue *queue;
 @property(nonatomic,weak) UIViewController *safariVC;
-
 @property(nonatomic,strong) NSString *accessToken;
 @property(nonatomic,strong) NSString *accessTokenSecretKey;
 @property(nonatomic,strong) NSString *sdkToken;
-
 @property(nonatomic,strong) NSMutableDictionary *completitionHandlers;
+
+- (void)invokeMethod:(NSString *)method arguments:(NSDictionary *)arguments session:(BOOL)session signed:(BOOL)signed success:(OKResultBlock)successBlock error:(OKErrorBlock)errorBlock;
 
 @end
 
@@ -331,7 +330,7 @@ typedef void (^OKErrorBlock)(NSError *error);
             successBlock(data);
         }
     };
-    [self openInSafari:[NSURL URLWithString:widgetUrl] success: successBlock error: errorBlock];
+  //[self openInSafari:[NSURL URLWithString:widgetUrl] success: successBlock error: errorBlock];
 }
 
 - (void)shutdown {
