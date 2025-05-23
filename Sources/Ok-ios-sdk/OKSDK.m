@@ -5,7 +5,6 @@
 #import "OKSDK.h"
 #ifdef __IPHONE_9_0
 #import <SafariServices/SafariServices.h>
-#import <WebKit/WebKit.h>
 #endif
 
 #define kIOS9x ([[[UIDevice currentDevice] systemVersion] floatValue] >= 9.0f)  // TODO: заменить после перехода на SDK9
@@ -26,72 +25,10 @@ NSString *const OK_SDK_ERROR_CODE_DOMAIN = @"ru.ok.sdk";
 
 
 typedef void (^OKCompletitionHander)(id data, NSError *error);
+typedef void (^OKResultBlock)(id data);
+typedef void (^OKErrorBlock)(NSError *error);
 
 @implementation OKSDKInitSettings
-@end
-
-#pragma mark - Web Controller
-
-@interface OKWebViewController : UIViewController <WKNavigationDelegate>
-@property (nonatomic, strong) WKWebView *webView;
-@property (nonatomic, strong) NSURL *authURL;
-@property (nonatomic, copy) OKErrorBlock errorBlock;
-@property (nonatomic, copy) void (^onComplete)(NSURL *url);
-@end
-
-@implementation OKWebViewController
-
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    self.view.backgroundColor = UIColor.whiteColor;
-
-    self.webView = [[WKWebView alloc] initWithFrame:CGRectZero];
-    self.webView.translatesAutoresizingMaskIntoConstraints = NO;
-    self.webView.navigationDelegate = self;
-    [self.view addSubview:self.webView];
-
-    self.title = @"Вход в ОК";
-    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc]
-        initWithBarButtonSystemItem:UIBarButtonSystemItemCancel
-                             target:self
-                             action:@selector(cancelPressed)];
-
-    [NSLayoutConstraint activateConstraints:@[
-        [self.webView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
-        [self.webView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
-        [self.webView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-        [self.webView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor]
-    ]];
-
-    [self.webView loadRequest:[NSURLRequest requestWithURL:self.authURL]];
-}
-
-- (void)cancelPressed {
-    if (self.errorBlock) {
-        NSError *error = [NSError errorWithDomain:OK_SDK_ERROR_CODE_DOMAIN
-                                             code:8
-                                         userInfo:@{NSLocalizedDescriptionKey: @"Пользователь отменил вход"}];
-        self.errorBlock(error);
-    }
-    [self dismissViewControllerAnimated:YES completion:nil];
-}
-
-- (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)action decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
-    NSURL *url = action.request.URL;
-    if ([url.absoluteString containsString:@"access_token="]) {
-        if (self.onComplete) self.onComplete(url);
-        [self dismissViewControllerAnimated:YES completion:nil];
-        decisionHandler(WKNavigationActionPolicyCancel);
-        return;
-    }
-    decisionHandler(WKNavigationActionPolicyAllow);
-}
-
-- (void)webView:(WKWebView *)webView didFailNavigation:(WKNavigation *)navigation withError:(NSError *)error {
-    if (self.errorBlock) self.errorBlock(error);
-    [self dismissViewControllerAnimated:YES completion:nil];
-}
-
 @end
 
 @implementation NSString (OKConnection)
@@ -202,31 +139,69 @@ typedef void (^OKCompletitionHander)(id data, NSError *error);
 
 @end
 
-#ifdef __IPHONE_9_0
+#pragma mark - Web Controller
 
-@interface OKSFSafariViewController:SFSafariViewController<SFSafariViewControllerDelegate>
-@property(nonatomic,strong) OKErrorBlock errorBlock;
+@interface OKWebAuthController : UIViewController <WKNavigationDelegate>
+@property (nonatomic, strong) WKWebView *webView;
+@property (nonatomic, strong) NSURL *authURL;
+@property (nonatomic, copy) OKErrorBlock errorBlock;
+@property (nonatomic, copy) void (^onComplete)(NSURL *url);
 @end
 
-@implementation OKSFSafariViewController
-- (instancetype)initWithErrorBlock:(OKErrorBlock)errorBlock url:(NSURL *)url {
-    if (self = [super initWithURL:url]) {
-        _errorBlock = errorBlock;
-        self.delegate = self;
-    }
-    return self;
+@implementation OKWebAuthController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.view.backgroundColor = UIColor.whiteColor;
+
+    self.webView = [[WKWebView alloc] initWithFrame:CGRectZero];
+    self.webView.translatesAutoresizingMaskIntoConstraints = NO;
+    self.webView.navigationDelegate = self;
+    [self.view addSubview:self.webView];
+
+    self.title = @"Вход в ОК";
+    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc]
+        initWithBarButtonSystemItem:UIBarButtonSystemItemCancel
+                             target:self
+                             action:@selector(cancelPressed)];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [self.webView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
+        [self.webView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
+        [self.webView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [self.webView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor]
+    ]];
+
+    [self.webView loadRequest:[NSURLRequest requestWithURL:self.authURL]];
 }
 
-- (void)safariViewControllerDidFinish:(SFSafariViewController *)controller {
+- (void)cancelPressed {
     if (self.errorBlock) {
-        self.errorBlock([NSError errorWithDomain:OK_SDK_ERROR_CODE_DOMAIN code:OKSDKErrorCodeCancelledByUser userInfo:@{NSLocalizedDescriptionKey : @"Web view controller cancelled by user"}]);
+        NSError *error = [NSError errorWithDomain:OK_SDK_ERROR_CODE_DOMAIN
+                                             code:8
+                                         userInfo:@{NSLocalizedDescriptionKey: @"Пользователь отменил вход"}];
+        self.errorBlock(error);
     }
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)action decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
+    NSURL *url = action.request.URL;
+    if ([url.absoluteString containsString:@"access_token="]) {
+        if (self.onComplete) self.onComplete(url);
+        [self dismissViewControllerAnimated:YES completion:nil];
+        decisionHandler(WKNavigationActionPolicyCancel);
+        return;
+    }
+    decisionHandler(WKNavigationActionPolicyAllow);
+}
+
+- (void)webView:(WKWebView *)webView didFailNavigation:(WKNavigation *)navigation withError:(NSError *)error {
+    if (self.errorBlock) self.errorBlock(error);
+    [self dismissViewControllerAnimated:YES completion:nil];
 }
 
 @end
-
-#endif
-
 
 @interface OKConnection : NSObject
 
@@ -273,14 +248,24 @@ typedef void (^OKCompletitionHander)(id data, NSError *error);
 
 - (void)openInSafari:(NSURL *)url success:(OKResultBlock)successBlock error:(OKErrorBlock)errorBlock {
     @synchronized(self) {
+        if( [[self.safariVC view] superview] ) {
+            return errorBlock([OKConnection sdkError:OKSDKErrorCodeUserConfirmationDialogAlreadyInProgress format:@"user confirmation dialog is already in progress"]);
+        }
         dispatch_async(dispatch_get_main_queue(), ^{
             UIViewController *hostController = self.settings.controllerHandler();
-            OKWebViewController *vc = [OKWebViewController new];
-            vc.authURL = url;
-            vc.errorBlock = errorBlock;
-            UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:vc];
-            [hostController presentViewController:nav animated:YES completion:nil];
-            self.safariVC = nav;
+            UIViewController  *vc;
+#ifdef __IPHONE_9_0
+            if (kIOS9x) {
+                vc = [[OKSFSafariViewController alloc] initWithErrorBlock:errorBlock url:url];
+                [hostController presentViewController:vc animated:true completion:nil];
+                self.safariVC = vc;
+            } else {
+               [[UIApplication sharedApplication] openURL: url];
+            }
+#else
+            [[UIApplication sharedApplication] openURL: url];
+#endif
+
         });
     }
 }
@@ -331,7 +316,7 @@ typedef void (^OKCompletitionHander)(id data, NSError *error);
         }
     };
     if (![app openURL: appUrl]) {
-        [self openInSafari:[NSURL URLWithString:[NSString stringWithFormat:@"%@?%@",OK_OAUTH_URL,queryString]] success: successBlock error: errorBlock];
+        [self openInWebView:url success:successBlock error:errorBlock];
     }
 }
 
@@ -342,45 +327,51 @@ typedef void (^OKCompletitionHander)(id data, NSError *error);
     [userDefaults synchronize];
 }
 
-- (void)invokeMethod:(NSString *)method arguments:(NSDictionary *)methodParams session:(bool)sessionMethod signed:(bool)signedMethod success:(OKResultBlock)successBlock error:(OKErrorBlock)errorBlock {
-    if((!self.accessToken && sessionMethod) || (!self.accessTokenSecretKey && signedMethod)) {
-        return errorBlock([OKConnection sdkError:OKSDKErrorCodeNotAuthorized format:@"No access_token defined you should invoke authorizeWithPermissions first"]);
+- (void)authorizeWithPermissions:(NSArray *)permissions success:(OKResultBlock)successBlock error:(OKErrorBlock)errorBlock {
+    if (self.accessToken && self.accessTokenSecretKey) {
+        return successBlock(@[self.accessToken, self.accessTokenSecretKey]);
     }
-    NSMutableDictionary *arguments = [[NSMutableDictionary alloc] initWithDictionary:methodParams];
-    [arguments setValuesForKeysWithDictionary:@{@"application_key":self.settings.appKey, @"method":method, @"format":@"json", @"platform":@"IOS"}];
-    NSString* queryString = signedMethod?[arguments ok_queryStringWithSignature:self.accessTokenSecretKey sigName:@"sig"]:[arguments ok_queryString];
-    NSString* url = sessionMethod?[NSString stringWithFormat:@"%@%@access_token=%@",OK_API_URL,queryString,self.accessToken]:[NSString stringWithFormat:@"%@%@",OK_API_URL,queryString];
-    NSMutableURLRequest *request = [NSMutableURLRequest
-                                    requestWithURL:[NSURL URLWithString:url] cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:OK_REQUEST_TIMEOUT];
-    [request setValue:[NSString stringWithFormat:@"OK-IOS-SDK  %@",OK_SDK_VERSION] forHTTPHeaderField:@"User-Agent"];
-    [NSURLConnection sendAsynchronousRequest:request queue:self.queue completionHandler:^(NSURLResponse *response, NSData *data, NSError *error) {
-        if (error) {
-            return errorBlock(error);
-        }
-        NSError *jsonParsingError = nil;
-        id result = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingAllowFragments error:&jsonParsingError];
-        if(jsonParsingError) {
-            return errorBlock(error);
-        }
-        if ([result isKindOfClass:[NSDictionary class]]) {
-            if (result[@"error_code"]) {
-                return errorBlock([(NSDictionary *)result ok_error]);
-            }
-            return successBlock(result);
-        }
-        if([result isKindOfClass:[NSArray class]]) {
-            return successBlock(result);
-        }
-        if([result isKindOfClass:[NSNumber class]]) {
-            return successBlock(result);
-        }
-        if([result isKindOfClass:[NSString class]]) {
-            return successBlock(result);
-        }
-        return errorBlock([OKConnection sdkError:OKSDKErrorCodeBadApiReponse format:@"unknown api response: %@",[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]]);
 
-    }];
+    NSString *scope = [[permissions componentsJoinedByString:@";"] stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLQueryAllowedCharacterSet];
+    NSString *redirect = [self.oauthRedirectUri stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLQueryAllowedCharacterSet];
+    NSString *urlStr = [NSString stringWithFormat:@"%@?response_type=token&client_id=%@&redirect_uri=%@&layout=a&scope=%@",
+                        OK_OAUTH_URL, self.settings.appId, redirect, scope];
+    NSURL *url = [NSURL URLWithString:urlStr];
 
+    UIViewController *host = self.settings.controllerHandler();
+    OKWebAuthController *vc = [OKWebAuthController new];
+    vc.authURL = url;
+    vc.errorBlock = errorBlock;
+    __weak typeof(self) weakSelf = self;
+    vc.onComplete = ^(NSURL *url) {
+        [weakSelf handleOAuthCallback:url success:successBlock error:errorBlock];
+    };
+
+    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:vc];
+    [host presentViewController:nav animated:YES completion:nil];
+}
+
+- (void)handleOAuthCallback:(NSURL *)url success:(OKResultBlock)successBlock error:(OKErrorBlock)errorBlock {
+    NSString *fragment = url.fragment ?: url.query;
+    NSMutableDictionary *params = [NSMutableDictionary dictionary];
+    for (NSString *pair in [fragment componentsSeparatedByString:@"&"]) {
+        NSArray *kv = [pair componentsSeparatedByString:@"="];
+        if (kv.count == 2) {
+            params[kv[0]] = kv[1];
+        }
+    }
+
+    if (params[@"access_token"]) {
+        self.accessToken = params[@"access_token"];
+        self.accessTokenSecretKey = params[@"session_secret_key"];
+        NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
+        [ud setObject:self.accessToken forKey:OK_USER_DEFS_ACCESS_TOKEN];
+        [ud setObject:self.accessTokenSecretKey forKey:OK_USER_DEFS_SECRET_KEY];
+        [ud synchronize];
+        successBlock(@[self.accessToken, self.accessTokenSecretKey]);
+    } else {
+        errorBlock([NSError errorWithDomain:OK_SDK_ERROR_CODE_DOMAIN code:5 userInfo:@{NSLocalizedDescriptionKey: @"OAuth error"}]);
+    }
 }
 
 - (void)showWidget:(NSString *)command arguments:(NSDictionary *)arguments options:(NSDictionary *)options success:(OKResultBlock)successBlock error:(OKErrorBlock)errorBlock {
@@ -402,18 +393,21 @@ typedef void (^OKCompletitionHander)(id data, NSError *error);
 }
 
 - (void)clearAuth {
-    NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
     self.accessToken = nil;
     self.accessTokenSecretKey = nil;
-    [userDefaults removeObjectForKey:OK_USER_DEFS_ACCESS_TOKEN];
-    [userDefaults removeObjectForKey:OK_USER_DEFS_SECRET_KEY];
+    NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
+    [ud removeObjectForKey:OK_USER_DEFS_ACCESS_TOKEN];
+    [ud removeObjectForKey:OK_USER_DEFS_SECRET_KEY];
 
-    NSArray *cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookies];
-    for (NSHTTPCookie *cookie in cookies) {
-        if (NSNotFound != [cookie.domain rangeOfString:@"odnoklassniki.ru"].location || NSNotFound != [cookie.domain rangeOfString:@"ok.ru"].location) {
-            [[NSHTTPCookieStorage sharedHTTPCookieStorage]
-             deleteCookie:cookie];
-        }
+    if (@available(iOS 9.0, *)) {
+        NSSet *types = [NSSet setWithObject:WKWebsiteDataTypeCookies];
+        [[WKWebsiteDataStore defaultDataStore] fetchDataRecordsOfTypes:types completionHandler:^(NSArray<WKWebsiteDataRecord *> *records) {
+            for (WKWebsiteDataRecord *record in records) {
+                if ([record.displayName containsString:@"ok.ru"] || [record.displayName containsString:@"odnoklassniki.ru"]) {
+                    [[WKWebsiteDataStore defaultDataStore] removeDataOfTypes:types forDataRecords:@[record] completionHandler:^{}];
+                }
+            }
+        }];
     }
 }
 
